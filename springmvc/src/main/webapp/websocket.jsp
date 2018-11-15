@@ -26,37 +26,44 @@
 
         function connect() {
             var userid = document.getElementById('name').value;
-            var socket = new SockJS("http://localhost:8080/hello", undefined, {transports: ['websocket']});///springmvc
+
+            // 建立连接对象（还未发起连接）
+            var socket = new SockJS("http://localhost:8080/hello");
+            // 获取 STOMP 子协议的客户端对象
             stompClient = Stomp.over(socket);
+            // 向服务器发起websocket连接并发送CONNECT帧
             stompClient.connect({}, function(frame) {
                 setConnected(true);
                 console.log('Connected: ' + frame);
 
-                //与@RequestMapping相似的传值方法
-                stompClient.send("/app/init",{},"stomp-我过来了");
+                //订阅一个消息,监听后台返回广播消息
+                stompClient.subscribe('/topic/hello', onmessage);
+                //一对一通讯未实现，暂不考虑
+                // stompClient.subscribe('/topic/sunrise/message',onmessage);
+
+                //向服务器发送信息,与@RequestMapping相似的传值方法
+                stompClient.send("/app/init",{},"stomp is coming");
 
                 //不使用stomp，ajax请求也可行通
                 $.ajax({
                     url: '/init2',
                     type: "get",
                     cache: false,
-                    'data':{'msg':"ajax-我也过来了"},
+                    //async:false,
+                    'data':{'msg':"ajax is coming"},
                     success: function (data) {
-
+                        alert("ajax返回数据："+data.content);
                     }
                 })
 
-                //监听后台返回广播消息
-                stompClient.subscribe('/topic/hello', function(greeting){
-                    alert(JSON.parse(greeting.body).content);
-                    showGreeting(JSON.parse(greeting.body).content);
-                });
-                //一对一通讯未实现，暂不考虑
-                // stompClient.subscribe('/topic/sunrise/message',function(greeting){
-                //     alert(JSON.parse(greeting.body).content);
-                //     showGreeting(JSON.parse(greeting.body).content);
-                // });
+
             });
+        }
+
+        //如果想让客户端订阅多个目的地，你可以在接收所有信息的时候调用相同的回调函数：
+        onmessage = function(response) {
+            alert(response);
+            showGreeting(JSON.parse(response.body).content);
         }
 
         function sendName() {
